@@ -314,7 +314,7 @@
 
     <div class="navbar">
         <div class="logo">
-            <img src="ic_notif_v3.png" id="navic_notif_v3.png">
+            <img src="logo.png" id="navLogo">
             GODDATAX <span>PANEL</span>
         </div>
         <div style="font-size: 14px; color: var(--text-dim);">Administrator</div>
@@ -491,7 +491,7 @@
                 const statusClass = status === 'active' ? 'status-active' : 'status-paused';
 
                 const regCount = (item.registered_devices || []).length;
-                const limit = item.device_limit || 1;
+                const limit = (item.device_limit === 0) ? 0 : (item.device_limit || 1);
                 const limitStr = limit === 0 ? "Unlimited" : limit;
                 const deviceUsage = `${regCount} / ${limitStr}`;
 
@@ -510,6 +510,9 @@
                         <span class="status-badge ${statusClass}">${status.toUpperCase()}</span>
                     </td>
                     <td class="actions" style="justify-content: flex-end;">
+                        <div class="action-btn" onclick="resetDevices('${item.key}')" title="Reset Devices">
+                            <i class="fas fa-redo-alt"></i>
+                        </div>
                         <div class="action-btn" onclick="togglePause('${item.key}', '${status}')" title="${status === 'active' ? 'Pause' : 'Resume'}">
                             <i class="fas fa-${status === 'active' ? 'pause' : 'play'}"></i>
                         </div>
@@ -551,6 +554,21 @@
                 alert("Gagal hapus: " + error.message);
             }
         }
+        async function resetDevices(key) {
+            if(!confirm('Hapus semua perangkat yang terdaftar di license ' + key + '?')) return;
+            const { error } = await _supabase
+                .from('licenses')
+                .update({ registered_devices: [] })
+                .eq('key', key);
+
+            if (!error) {
+                showNotif('Devices Reset Successfully');
+                loadLicenses();
+            } else {
+                alert("Gagal reset: " + error.message);
+            }
+        }
+
 
         function filterTable() {
             const q = document.getElementById('searchInput').value.toLowerCase();
@@ -679,7 +697,7 @@
         // Initialize
         loadLicenses();
         // Dynamic Logo
-        document.getElementById('navic_notif_v3.png').src = "ic_notif_v3.png";
+        document.getElementById('navLogo').src = "../app/src/main/assets/goddatax_logo_v3.png";
     </script>
 </body>
 </html>
