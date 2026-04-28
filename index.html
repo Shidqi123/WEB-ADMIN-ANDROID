@@ -314,17 +314,23 @@
 
     <div class="navbar">
         <div class="logo">
-            <img src="ic_notif_v3.png" id="navLogo">
+            <img src="logo.png" id="navLogo">
             GODDATAX <span>PANEL</span>
         </div>
         <div style="font-size: 14px; color: var(--text-dim);">Administrator</div>
     </div>
 
     <div class="container">
-        <!-- Stats -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-download"></i></div>
+                <div class="stat-icon" style="background: rgba(0, 255, 136, 0.1); color: #00ff88;"><i class="fas fa-users"></i></div>
+                <div class="stat-info">
+                    <h3 id="statDownloads">--</h3>
+                    <p>Total Downloads</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-key"></i></div>
                 <div class="stat-info">
                     <h3 id="statTotal">--</h3>
                     <p>Total License</p>
@@ -370,13 +376,14 @@
                             <th>LICENSE KEY</th>
                             <th>APP ID</th>
                             <th>REMAINING</th>
+                            <th>DEVICES</th>
                             <th>STATUS</th>
                             <th style="text-align: right;">ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="licenseTable">
                         <!-- Loaded dynamically -->
-                        <tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 40px;">Fetching from Supabase...</td></tr>
+                        <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 40px;">Fetching from Supabase...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -402,7 +409,13 @@
             </div>
             <div class="input-group">
                 <label>Device Limit (Max users for this key)</label>
-                <input type="number" id="newKeyLimit" value="1">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="number" id="newKeyLimit" value="1" style="flex: 1;">
+                    <label style="display: flex; align-items: center; gap: 5px; margin-bottom: 0; cursor: pointer; white-space: nowrap;">
+                        <input type="checkbox" id="unlimitedDevices" onchange="toggleUnlimited(this)" style="width: 18px; height: 18px;"> 
+                        Unlimited
+                    </label>
+                </div>
             </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modalCreate')">Cancel</button>
@@ -463,7 +476,7 @@
             tbody.innerHTML = '';
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 40px;">Belum ada license. Klik "Generate" untuk tambah manual.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 40px;">Belum ada license. Klik "Generate" untuk tambah manual.</td></tr>';
                 return;
             }
 
@@ -477,6 +490,11 @@
                 const status = (item.status || 'active').toLowerCase();
                 const statusClass = status === 'active' ? 'status-active' : 'status-paused';
 
+                const regCount = (item.registered_devices || []).length;
+                const limit = item.device_limit || 1;
+                const limitStr = limit === 0 ? "Unlimited" : limit;
+                const deviceUsage = `${regCount} / ${limitStr}`;
+
                 tr.innerHTML = `
                     <td>
                         <div class="license-key">${item.key}</div>
@@ -485,6 +503,9 @@
                         <div class="license-id">#${item.id || '---'}</div>
                     </td>
                     <td>${diffDays > 0 ? diffDays + ' Days' : 'Expired'}</td>
+                    <td style="font-size: 13px; color: ${limit !== 0 && regCount >= limit ? '#ff4d4d' : 'var(--text)'}">
+                        <i class="fas fa-mobile-alt" style="margin-right: 5px; opacity: 0.5;"></i> ${deviceUsage}
+                    </td>
                     <td>
                         <span class="status-badge ${statusClass}">${status.toUpperCase()}</span>
                     </td>
@@ -545,7 +566,8 @@
             if (!name) { alert("Masukkan License Key secara manual!"); return; }
             
             const days = parseInt(document.getElementById('newKeyDuration').value);
-            const limit = parseInt(document.getElementById('newKeyLimit').value) || 1;
+            const isUnlimited = document.getElementById('unlimitedDevices').checked;
+            const limit = isUnlimited ? 0 : (parseInt(document.getElementById('newKeyLimit').value) || 1);
             const expiry = new Date();
             expiry.setDate(expiry.getDate() + days);
 
@@ -584,6 +606,30 @@
             document.getElementById('statTotal').textContent = licenses.length;
             document.getElementById('statActive').textContent = licenses.filter(l => (l.status || 'active') === 'active').length;
             document.getElementById('statPaused').textContent = licenses.filter(l => l.status === 'paused').length;
+            
+            // Calculate total unique registered devices (Downloads)
+            const allDevices = new Set();
+            licenses.forEach(l => {
+                if (l.registered_devices && Array.isArray(l.registered_devices)) {
+                    l.registered_devices.forEach(d => {
+                        if (d) allDevices.add(d);
+                    });
+                }
+            });
+            document.getElementById('statDownloads').textContent = allDevices.size;
+        }
+
+        function toggleUnlimited(checkbox) {
+            const input = document.getElementById('newKeyLimit');
+            if (checkbox.checked) {
+                input.value = 0;
+                input.disabled = true;
+                input.style.opacity = '0.5';
+            } else {
+                input.value = 1;
+                input.disabled = false;
+                input.style.opacity = '1';
+            }
         }
 
         function openCreateModal() { document.getElementById('modalCreate').style.display = 'flex'; }
