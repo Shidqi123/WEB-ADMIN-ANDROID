@@ -314,7 +314,7 @@
 
     <div class="navbar">
         <div class="logo">
-            <img src="ic_notif_v3.png" id="navic_notif_v3.png">
+            <img src="logo.png" id="navLogo">
             GODDATAX <span>PANEL</span>
         </div>
         <div style="font-size: 14px; color: var(--text-dim);">Administrator</div>
@@ -439,6 +439,12 @@
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modalUpdate')">Cancel</button>
                 <button class="btn-save" onclick="pushUpdate()">Push Update</button>
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid var(--border);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 12px; color: var(--text-dim);">Current Status:</span>
+                    <span id="currentStatusVer" style="font-size: 12px; font-weight: bold; color: var(--primary);">Loading...</span>
+                </div>
             </div>
             <button class="btn-cancel" style="width: 100%; margin-top: 10px; background: rgba(236, 28, 36, 0.1); color: var(--primary);" onclick="clearUpdate()">CLEAR UPDATE (Stop Notifications)</button>
         </div>
@@ -611,13 +617,28 @@
 
         async function clearUpdate() {
             if(!confirm('Hentikan notifikasi update untuk semua pengguna?')) return;
-            const { error } = await _supabase.from('app_config').update({ version: '1.0' }).neq('id', 0);
+            const { error } = await _supabase.from('app_config').update({ version: '1.0' }).neq('id', -1); // Update all
             if (!error) {
                 showNotif('Update Cleared (Notifications Stopped)');
+                fetchCurrentConfig();
                 closeModal('modalUpdate');
             } else {
                 alert("Gagal clear: " + error.message);
             }
+        }
+
+        async function fetchCurrentConfig() {
+            try {
+                const { data, error } = await _supabase.from('app_config').select('*').order('id', { ascending: false }).limit(1);
+                if (data && data.length > 0) {
+                    const conf = data[0];
+                    const statusEl = document.getElementById('currentStatusVer');
+                    if (statusEl) {
+                        statusEl.textContent = conf.version === '1.0' ? 'No Update' : 'v' + conf.version;
+                        statusEl.style.color = conf.version === '1.0' ? 'var(--text-dim)' : 'var(--primary)';
+                    }
+                }
+            } catch (e) {}
         }
 
         function updateStats() {
@@ -666,9 +687,8 @@
             
             if (!version || !url) { alert("Isi versi dan link update!"); return; }
 
-            // Update app_config table (assuming it exists with a single row or we update row with id 1)
-            // If the table is empty, we might need to insert. Let's try upsert or check first.
-            const { data: existing } = await _supabase.from('app_config').select('*').limit(1);
+            // Update app_config table - Update the latest row or insert if empty
+            const { data: existing } = await _supabase.from('app_config').select('*').order('id', { ascending: false }).limit(1);
             
             let error;
             if (existing && existing.length > 0) {
@@ -681,6 +701,7 @@
 
             if (!error) {
                 showNotif('Update Pushed to All Users!');
+                fetchCurrentConfig();
                 closeModal('modalUpdate');
             } else {
                 alert("Gagal push update: " + error.message);
@@ -696,8 +717,9 @@
 
         // Initialize
         loadLicenses();
+        fetchCurrentConfig();
         // Dynamic Logo
-        document.getElementById('navic_notif_v3.png').src = "ic_notif_v3.png";
+        document.getElementById('navLogo').src = "../app/src/main/assets/goddatax_logo_v3.png";
     </script>
 </body>
 </html>
